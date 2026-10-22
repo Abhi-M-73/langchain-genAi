@@ -2,74 +2,36 @@ import pypandoc
 
 content = r"""# Terminal AI Chatbot with Node.js, LangChain & Groq
 
-A step-by-step learning project for building a terminal-based AI chatbot using Node.js, LangChain, Groq, and a custom JavaScript tool.
+A step-by-step learning project for a terminal-based AI chatbot using Node.js `readline`, LangChain, Groq, and a custom JavaScript multiplication tool.
 
-> **Project status:** Basic terminal chat, command handling, conversation history, and a multiplication tool have been implemented. History trimming still needs a tool-safe improvement before treating it as production-ready.
+> **Status:** Basic chat, terminal commands, tool calling, and conversation history have been explored. History trimming still needs a tool-safe improvement before production use.
 
-## Table of Contents
+## Features
 
-1. [What this project does](#what-this-project-does)
-2. [Tech stack](#tech-stack)
-3. [Project setup](#project-setup)
-4. [Environment variables](#environment-variables)
-5. [Configure the AI model](#configure-the-ai-model)
-6. [Create the multiplication tool](#create-the-multiplication-tool)
-7. [Create the terminal chatbot](#create-the-terminal-chatbot)
-8. [How tool calling works](#how-tool-calling-works)
-9. [Conversation history](#conversation-history)
-10. [Run the chatbot](#run-the-chatbot)
-11. [Test prompts](#test-prompts)
-12. [Important notes and next steps](#important-notes-and-next-steps)
-
-## What this project does
-
-- Reads user input in the terminal using Node.js `readline`.
-- Sends messages to a Groq-hosted language model through LangChain.
-- Keeps a conversation history during the current session.
-- Supports terminal commands:
-  - `help` — show available commands.
-  - `clear` — clear conversation history while preserving the system prompt.
-  - `exit` — close the chatbot.
-- Defines a custom `multiply_numbers` tool.
-- Lets the AI request the multiplication tool, runs it in JavaScript, and sends the result back to the AI for a final response.
+- Terminal input with Node.js `readline`
+- Groq chat model through LangChain
+- Conversation history for the current session
+- `help`, `clear`, and `exit` commands
+- Custom `multiply_numbers` tool using Zod validation
+- AI tool-call → JavaScript execution → `ToolMessage` result → AI final response flow
+- Recent-message window to reduce the amount of history sent to the model
 
 ## Tech stack
 
-- Node.js
-- JavaScript ES modules
-- `node:readline`
-- LangChain
-- `@langchain/groq`
-- `@langchain/core`
-- Groq API
-- `dotenv`
-- `zod`
+Node.js, JavaScript ES modules, `@langchain/groq`, `@langchain/core`, `langchain`, `dotenv`, `groq-sdk`, and `zod`.
 
-## Project setup
-
-Create a project directory and initialize npm:
+## 1. Project setup
 
 ```bash
 mkdir terminal-ai-chatbot
 cd terminal-ai-chatbot
 npm init -y
-```
-
-Set the project to use ES modules by adding this field to `package.json`:
-
-```json
-{
-  "type": "module"
-}
-```
-
-Install the packages used in this project:
-
-```bash
 npm install @langchain/groq @langchain/core langchain dotenv groq-sdk zod
 ```
 
-Example file structure:
+Set `"type": "module"` in `package.json` so the project can use `import` and `export`.
+
+Example structure:
 
 ```text
 terminal-ai-chatbot/
@@ -82,26 +44,24 @@ terminal-ai-chatbot/
 └── README.md
 ```
 
-## Environment variables
+## 2. Environment variables
 
-Create a `.env` file in the project root:
+Create `.env`:
 
 ```env
 GROQ_API_KEY=your_groq_api_key_here
 ```
 
-**Security:** Never commit your real API key to GitHub. Add `.env` to `.gitignore`:
+Create `.gitignore`:
 
 ```gitignore
 node_modules/
 .env
 ```
 
-If a real API key has ever been committed publicly, revoke it and generate a new one.
+**Never commit a real API key to GitHub.** If a key was accidentally published, revoke it and generate a new one.
 
-## Configure the AI model
-
-Create `model.js`:
+## 3. Configure the model (`model.js`)
 
 ```javascript
 import { config } from "dotenv";
@@ -118,11 +78,9 @@ const model = new ChatGroq({
 export default model;
 ```
 
-The model ID available from Groq can change over time. If the provider reports that the model is unavailable, check Groq's current model list and update the ID.
+Model IDs can change over time. If Groq reports that this model is unavailable, check its current model list and update the ID.
 
-## Create the multiplication tool
-
-Create `tools.js`:
+## 4. Create the multiplication tool (`tools.js`)
 
 ```javascript
 import { tool } from "@langchain/core/tools";
@@ -146,17 +104,13 @@ const multiplyNumbers = tool(operation1, operation1Details);
 export default multiplyNumbers;
 ```
 
-### What this file does
-
-- `operation1` performs the actual multiplication.
-- `name` gives the tool a unique name that the model can request.
-- `description` tells the model when the tool is useful.
-- `z.object(...)` validates the tool's input structure.
+- `operation1` performs the multiplication.
+- `name` identifies the tool.
+- `description` helps the model decide when to use it.
+- `z.object(...)` defines and validates the tool arguments.
 - `tool(...)` wraps the JavaScript function as a LangChain tool.
 
-## Create the terminal chatbot
-
-Create `server.js`:
+## 5. Terminal chatbot (`server.js`)
 
 ```javascript
 import readline from "node:readline";
@@ -182,7 +136,6 @@ const systemPrompt = new SystemMessage(
 );
 
 const messages = [systemPrompt];
-
 const modelWithTools = model.bindTools([multiplyNumbers]);
 
 const executeToolCalls = async (response, messages) => {
@@ -265,59 +218,52 @@ exit  - Close chatbot
 askQuestion();
 ```
 
-### Important note about the history code
+## 6. How tool calling works
 
-The code above documents the current learning approach, but the simple `slice(-10)` strategy is **not fully tool-safe**. It can cut off an AI tool-call message while leaving its `ToolMessage` (or the reverse) outside the request window. That can cause a malformed conversation or provider error.
-
-The `executeToolCalls` helper also currently handles only `multiply_numbers`. If another tool is added, the handler must be extended or made generic.
-
-Treat this as a learning version. Before production use, implement history trimming that preserves complete turns and tool-call/result pairs, and consider adding a maximum iteration limit for tool calls.
-
-## How tool calling works
-
-The tool flow is:
-
-1. The user asks a question, such as `25 multiply by 4`.
-2. `modelWithTools.invoke(...)` sends the messages to the model with tool definitions available.
-3. The model may return a tool call in `response.tool_calls`.
+1. The user asks something like `25 multiply by 4`.
+2. `modelWithTools.invoke(...)` sends the conversation and tool definition to the model.
+3. The model may return a tool request in `response.tool_calls`.
 4. `executeToolCalls(...)` runs the requested JavaScript tool.
-5. The result is added to the message history as a `ToolMessage`, linked by `tool_call_id`.
-6. The model is invoked again with the tool result.
-7. The model returns a normal answer, which is printed in the terminal.
+5. The result is added as a `ToolMessage` with the matching `tool_call_id`.
+6. The model is called again with the tool result.
+7. The final AI response is printed in the terminal.
 
-A model does not execute the JavaScript function by itself. The application receives the requested tool call and executes the function.
+The model does not execute JavaScript itself. The app receives the tool request and runs the function.
 
-## Conversation history
+## 7. Conversation history
 
-The `messages` array stores the system prompt and the messages exchanged in the current session.
+`messages` stores the system prompt and current-session messages:
 
 ```javascript
 const messages = [systemPrompt];
 ```
 
-When a user asks a question, a `HumanMessage` is added. The final AI response is added after the model has finished any tool calls.
-
-The `clear` command uses:
+The `clear` command resets the array while preserving the system prompt:
 
 ```javascript
 messages.length = 1;
 ```
 
-This removes the conversation messages but keeps the system prompt at index `0`.
+To reduce the history sent to the model, the current learning version uses:
 
-To reduce token usage, the current implementation sends the system prompt plus a recent-message window to the model. This reduces the number of messages sent per request, but it does not guarantee a fixed token count: a few long messages can still consume many tokens. A future improvement is to trim complete conversation turns and tool interactions safely, or use a token-aware history strategy.
+```javascript
+const getRecentMessages = () => [
+  messages[0],
+  ...messages.slice(1).slice(-10),
+];
+```
 
-## Run the chatbot
+This sends the system prompt plus up to the last 10 other messages. It reduces the number of messages sent, but does not guarantee a fixed token count because message lengths vary.
 
-Start the program:
+**Important limitation:** simple `slice(-10)` history trimming is not fully tool-safe. It may separate an AI tool-call message from its matching `ToolMessage`. In a robust version, trim complete conversation turns and preserve tool-call/result pairs. Also consider a maximum tool-call loop count.
+
+## 8. Run the chatbot
 
 ```bash
 node server.js
 ```
 
-## Test prompts
-
-Try these prompts in the terminal:
+Try:
 
 ```text
 Hello, how are you?
@@ -328,28 +274,19 @@ clear
 exit
 ```
 
-Expected multiplication results:
+Expected multiplication results: `25 × 4 = 100`, and `12 × 8 = 96`. The AI's wording may vary.
 
-- `25 × 4` → `100`
-- `12 × 8` → `96`
+## 9. Next improvements
 
-The exact wording of the AI's final response may differ.
-
-## Important notes and next steps
-
-- Keep `.env` private and never publish the API key.
-- Verify that the selected Groq model ID is currently supported.
-- Improve recent-history trimming so tool-call messages and tool results remain together.
-- Consider a maximum tool-call loop count to avoid endless tool cycles.
-- Add more tools, such as addition, subtraction, or a date/time helper.
-- Add better input validation and clearer error messages.
-- Add tests for tool execution and conversation history.
+- Make history trimming preserve complete turns and tool-call/result pairs.
+- Add a maximum tool-call iteration limit.
+- Add more tools, such as addition or subtraction.
+- Improve input validation and error messages.
+- Add tests for tool execution and history handling.
+- Keep API credentials out of GitHub and check model availability when needed.
 
 ---
 
-Built while learning Node.js, LangChain, and tool calling step by step.
+Built while learning Node.js, LangChain, Groq, and AI tool calling step by step.
 """
 
-output_path = "/mnt/data/README.md"
-pypandoc.convert_text(content, "md", format="md", outputfile=output_path, extra_args=["--standalone"])
-print(f"Created {output_path}")
