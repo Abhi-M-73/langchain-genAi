@@ -1,7 +1,3 @@
-import pypandoc
-
-content = r"""# Terminal AI Chatbot with Node.js, LangChain & Groq
-
 A step-by-step learning project for a terminal-based AI chatbot using Node.js `readline`, LangChain, Groq, and a custom JavaScript multiplication tool.
 
 > **Status:** Basic chat, terminal commands, tool calling, and conversation history have been explored. History trimming still needs a tool-safe improvement before production use.
@@ -71,7 +67,7 @@ config();
 
 const model = new ChatGroq({
   apiKey: process.env.GROQ_API_KEY,
-  model: "llama-3.3-70b-versatile",
+  model: "openai/gpt-oss-120b",
   temperature: 0.7,
 });
 
@@ -286,7 +282,4 @@ Expected multiplication results: `25 × 4 = 100`, and `12 × 8 = 96`. The AI's w
 - Keep API credentials out of GitHub and check model availability when needed.
 
 ---
-
-Built while learning Node.js, LangChain, Groq, and AI tool calling step by step.
-"""
 
